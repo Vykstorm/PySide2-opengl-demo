@@ -3,7 +3,9 @@ import sys
 from PySide2.QtWidgets import QOpenGLWidget, QDialog, QApplication, QVBoxLayout, QLineEdit
 from PySide2.QtOpenGLFunctions import *
 from PySide2.QtGui import QPainter
+from PySide2.QtCore import QThread
 from math import pi, sin, cos
+import socket
 
 
 try:
@@ -56,6 +58,29 @@ class Renderer(QOpenGLWidget):
         self.update()
 
 
+class Server(QThread):
+    def __init__(self, main):
+        super().__init__()
+        self.main = main
+
+
+    def run(self):
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.bind(('localhost', 10000))
+        s.listen(1)
+        while True:
+            conn, address = s.accept()
+            try:
+                while True:
+                    data = conn.recv(64)
+                    try:
+                        self.main.renderer.angular_speed = float(data.decode())
+                    except:
+                        pass
+            finally:
+                conn.close()
+
+
 
 
 class Main(QDialog):
@@ -75,8 +100,11 @@ class Main(QDialog):
 if __name__ == '__main__':
     # Create the Qt Application
     app = QApplication(sys.argv)
-    # Create and show the form
     main = Main()
+
+    server = Server(main)
+    server.start()
+
     main.show()
     # Run the main Qt loop
     sys.exit(app.exec_())
